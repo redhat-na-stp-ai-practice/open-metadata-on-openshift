@@ -1,0 +1,24 @@
+.DS_Store
+
+.idea/
+manifest.yaml
+venv/
+dictionary.dic
+tmp/
+
+**/charts
+
+### VisualStudioCode ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# Local History for Visual Studio Code
+.history/
+
+# Cluster secrets that should not be saved in Git
+bootstrap/base/sealed-secrets-secret.yaml
+bootstrap/base/private-repo-secret.yaml
