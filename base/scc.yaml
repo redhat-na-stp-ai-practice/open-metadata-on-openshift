@@ -1,0 +1,21 @@
+# Opensearch will not run without SCC configuration on OpenShift. This yaml was generated from:
+# oc adm policy add-scc-to-user anyuid -z default -n open-metadata --dry-run=client -o yaml
+#
+# More information: https://www.ibm.com/docs/en/product-master/12.0.0?topic=tasks-installing-opensearch-openshift-cluster
+# About SCC: https://www.redhat.com/en/blog/managing-sccs-in-openshift
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: system:openshift:scc:anyuid
+  namespace: open-metadata
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: ""
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:anyuid
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: open-metadata

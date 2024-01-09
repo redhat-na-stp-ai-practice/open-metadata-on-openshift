@@ -1,0 +1,194 @@
+# Original source for this file on the Open Metadata project page:
+# https://github.com/open-metadata/openmetadata-helm-charts/blob/main/charts/deps/values.yaml
+
+# Default values for deps.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# MySQL configurations for helm dependency
+# you can find more details about this here https://artifacthub.io/packages/helm/bitnami/mysql
+mysql:
+  enabled: true
+  fullnameOverride: "mysql"
+  architecture: standalone
+  image:
+    pullPolicy: "Always"
+  auth:
+    rootPassword: password  # to be provided by CI/CD
+  primary:
+    extraFlags: "--sort_buffer_size=10M"
+    persistence:
+      size: 50Gi
+    service:
+      nodePort: 3306
+    containerSecurityContext:
+      enabled: false
+    podSecurityContext:
+      enabled: false
+  initdbScripts:
+    init_openmetadata_db_scripts.sql: |
+      CREATE DATABASE openmetadata_db;
+      CREATE USER 'openmetadata_user'@'%' IDENTIFIED BY 'openmetadata_password';
+      GRANT ALL PRIVILEGES ON openmetadata_db.* TO 'openmetadata_user'@'%' WITH GRANT OPTION;
+      commit;
+    init_airflow_db_scripts.sql: |
+      CREATE DATABASE airflow_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      CREATE USER 'airflow_user'@'%' IDENTIFIED BY 'airflow_pass';
+      GRANT ALL PRIVILEGES ON airflow_db.* TO 'airflow_user'@'%' WITH GRANT OPTION;
+      commit;
+
+# OpenSearch Helm Dependency
+# you can find more details about this here https://artifacthub.io/packages/helm/opensearch-project-helm-charts/opensearch/2.12.2
+opensearch:
+  enabled: true
+  clusterName: opensearch
+  fullnameOverride: opensearch
+  nodeGroup: ""
+  imagePullPolicy: Always
+  opensearchJavaOpts: "-Xmx1g -Xms1g"
+  persistence:
+    size: 30Gi
+  protocol: http
+  config:
+    opensearch.yml: |
+      plugins.security.disabled: true
+  singleNode: true
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256M"
+    limits:
+      cpu: "2000m"
+      memory: "2048M"
+
+# Airflow configurations for helm dependency
+# you can find more details about this here https://github.com/airflow-helm/charts
+airflow:
+  enabled: true
+  airflow:
+    image:
+      repository: docker.getcollate.io/openmetadata/ingestion
+      tag: 1.2.3
+      pullPolicy: "IfNotPresent"
+    executor: "KubernetesExecutor"
+    config:
+      # This is required for OpenMetadata UI to fetch status of DAGs
+      AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
+      # OpenMetadata Airflow Apis Plugin DAGs Configuration
+      AIRFLOW__OPENMETADATA_AIRFLOW_APIS__DAG_GENERATED_CONFIGS: "/opt/airflow/dags"
+      # OpenMetadata Airflow Secrets Manager Configuration
+      AIRFLOW__OPENMETADATA_SECRETS_MANAGER__AWS_REGION: ""
+      AIRFLOW__OPENMETADATA_SECRETS_MANAGER__AWS_ACCESS_KEY_ID: ""
+      AIRFLOW__OPENMETADATA_SECRETS_MANAGER__AWS_ACCESS_KEY: ""
+    defaultSecurityContext:
+      fsGroup: 9999
+    kubernetesPodTemplate:
+      stringOverride: |-
+
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: dummy-name
+        spec:
+          restartPolicy: Never
+          serviceAccountName: airflow
+          shareProcessNamespace: false
+          containers:
+            - name: base
+              image: docker.getcollate.io/openmetadata/ingestion:1.2.2
+              imagePullPolicy: IfNotPresent
+              envFrom:
+                - secretRef:
+                    name: openmetadata-dependencies-config-envs
+              env:
+                - name: AIRFLOW__CORE__EXECUTOR
+                  value: LocalExecutor
+                - name: DATABASE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: airflow-mysql-secrets
+                      key: airflow-mysql-password
+                - name: CONNECTION_CHECK_MAX_COUNT
+                  value: "20"
+              ports: []
+              command: []
+              args: []
+              volumeMounts:
+                - name: dags-data
+                  mountPath: /opt/airflow/dags
+                - name: logs-data
+                  mountPath: /opt/airflow/logs
+          volumes:
+            - name: dags-data
+              persistentVolumeClaim:
+                claimName: openmetadata-dependencies-dags
+            - name: logs-data
+              persistentVolumeClaim:
+                claimName: openmetadata-dependencies-logs
+
+    users:
+      - username: admin
+        password: admin
+        role: Admin
+        email: spiderman@superhero.org
+        firstName: Peter
+        lastName: Parker
+  web:
+    extraVolumes:
+      - name: pod-template
+        configMap:
+          name: openmetadata-pod-template
+          defaultMode: 420
+    extraVolumeMounts:
+      - name: pod-template
+        readOnly: true
+        subPath: pod_template.yaml
+        mountPath: /opt/airflow/pod_templates/pod_template.yaml
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      timeoutSeconds: 10
+      failureThreshold: 10
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      timeoutSeconds: 10
+      failureThreshold: 10
+  postgresql:
+    enabled: false
+  workers:
+    enabled: false
+  flower:
+    enabled: false
+  redis:
+    enabled: false
+  externalDatabase:
+    type: mysql
+    host: mysql
+    port: 3306
+    database: airflow_db
+    user: airflow_user
+    passwordSecret: airflow-mysql-secrets
+    passwordSecretKey: airflow-mysql-password
+  serviceAccount:
+    create: true
+    name: "airflow"
+  scheduler:
+    logCleanup:
+      enabled: false
+  dags:
+    persistence:
+      enabled: true
+      # NOTE: "" means cluster-default
+      storageClass: "efs"
+      size: 1Gi
+      accessMode: ReadWriteMany
+  logs:
+    persistence:
+      enabled: true
+      # empty string means cluster-default
+      storageClass: "efs"
+      accessMode: ReadWriteMany
+      size: 1Gi

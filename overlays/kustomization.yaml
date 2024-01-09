@@ -1,0 +1,162 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: open-metadata
+
+resources:
+  - ../base
+
+# Supported helmCharts fields:
+# https://kubectl.docs.kubernetes.io/references/kustomize/builtins/#_helmchartinflationgenerator_
+
+helmCharts:
+  - name: openmetadata-dependencies
+    repo: https://helm.open-metadata.org/
+    namespace: open-metadata
+    version: 1.2.3
+    valuesFile: values-open-metadata-dependencies-1.2.3.yaml
+    releaseName: open-metadata-dependencies
+  - name: openmetadata
+    repo: https://helm.open-metadata.org/
+    namespace: open-metadata
+    version: 1.2.3
+    valuesFile: values-open-metadata-1.2.3.yaml
+    releaseName: open-metadata
+
+patches:
+  - target:
+      kind: Deployment
+      name: open-metadata-dependencies-db-migrations
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: open-metadata-dependencies-db-migrations
+      spec:
+        template:
+          spec:
+            securityContext:
+              fsGroup: null
+            containers:
+              - name: db-migrations
+                securityContext:
+                  runAsGroup: null
+                  runAsUser: null
+            initContainers:
+              - name: check-db
+                securityContext:
+                  runAsGroup: null
+                  runAsUser: null
+
+  - target:
+      kind: Deployment
+      name: open-metadata-dependencies-scheduler
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: open-metadata-dependencies-scheduler
+      spec:
+        template:
+          spec:
+            securityContext:
+              fsGroup: null
+            containers:
+              - name: airflow-scheduler
+                securityContext:
+                  runAsGroup: null
+                  runAsUser: null
+            initContainers:
+              - name: check-db
+                securityContext:
+                  runAsGroup: null
+                  runAsUser: null
+              - name: wait-for-db-migrations
+                securityContext:
+                  runAsGroup: null
+                  runAsUser: null
+
+  - target:
+      kind: Deployment
+      name: open-metadata-dependencies-sync-users
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: open-metadata-dependencies-sync-users
+      spec:
+        template:
+          spec:
+            securityContext:
+              fsGroup: null
+            containers:
+              - name: sync-airflow-users
+                securityContext:
+                  runAsGroup: null
+                  runAsUser: null
+            initContainers:
+              - name: check-db
+                securityContext:
+                  runAsGroup: null
+                  runAsUser: null
+              - name: wait-for-db-migrations
+                securityContext:
+                  runAsGroup: null
+                  runAsUser: null
+
+  - target:
+      kind: Deployment
+      name: open-metadata-dependencies-triggerer
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: open-metadata-dependencies-triggerer
+      spec:
+        template:
+          spec:
+            securityContext:
+              fsGroup: null
+            containers:
+              - name: airflow-triggerer
+                securityContext:
+                  runAsGroup: null
+                  runAsUser: null
+            initContainers:
+              - name: check-db
+                securityContext:
+                  runAsGroup: null
+                  runAsUser: null
+              - name: wait-for-db-migrations
+                securityContext:
+                  runAsGroup: null
+                  runAsUser: null
+
+  - target:
+      kind: Deployment
+      name: open-metadata-dependencies-web
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: open-metadata-dependencies-web
+      spec:
+        template:
+          spec:
+            securityContext:
+              fsGroup: null
+            containers:
+              - name: airflow-web
+                securityContext:
+                  runAsGroup: null
+                  runAsUser: null
+            initContainers:
+              - name: check-db
+                securityContext:
+                  runAsGroup: null
+                  runAsUser: null
+              - name: wait-for-db-migrations
+                securityContext:
+                  runAsGroup: null
+                  runAsUser: null

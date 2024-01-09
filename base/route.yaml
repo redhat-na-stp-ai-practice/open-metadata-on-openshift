@@ -1,0 +1,21 @@
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: open-metadata
+  namespace: open-metadata
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: ""
+  labels:
+    app.kubernetes.io/instance: open-metadata
+    app.kubernetes.io/name: openmetadata
+spec:
+  to:
+    kind: Service
+    name: openmetadata
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
