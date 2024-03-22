@@ -38,7 +38,7 @@ The installation uses Kustomize to create the installation configuration from th
 To perform the installation, run:
 
 ```sh
-$ kustomize build components/apps/open-metadata/overlays --enable-helm | oc apply -f -
+$ kustomize build overlays --enable-helm | oc apply -f -
 ```
 
 ### Accessing the UI
